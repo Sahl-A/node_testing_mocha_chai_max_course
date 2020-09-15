@@ -1,6 +1,8 @@
 const expect = require("chai").expect;
+const sinon = require("sinon");
 
 const authMiddleware = require("../middlewares/is-auth");
+const jwt = require("jsonwebtoken");
 
 describe("Auth middleware", function () {
   it("should throw an error if no authorization error is present", function () {
@@ -40,8 +42,8 @@ describe("Auth middleware", function () {
 
   // The below test should test if we passed the verify() and check if the req.userId is set or not
   // However, the test is incorrect, as the added token below is not the correct one, so, we will never
-  // pass the verification step this way. We will solve this later
-  /* it("should have userId added to the req object", function () {
+  // pass the verification step this way. We solve this in the tests below
+  /* it("should yield a userId after decoding the token", function () {
     const req = {
       get: function (headerName) {
         return "Bearer tokenXYZZZ@$12";
@@ -51,4 +53,40 @@ describe("Auth middleware", function () {
     authMiddleware(req, {}, () => {})
     expect(req).to.have.property('userId');
   }); */
+
+  // The below approach works but has a downside, it changes jwt.verify for any other tests below it.
+  // So, we use sinon to handle this in the test below
+  /* it("should yield a userId after decoding the token", function () {
+    const req = {
+      get: function (headerName) {
+        return "Bearer tokenXYZZZ@$12";
+      },
+    };
+    // Change the jwt.verify to pass and return userId
+    jwt.verify = function () {
+      return { userId: "xyz" };
+    };
+    authMiddleware(req, {}, () => {});
+    expect(req).to.have.property("userId");
+  }); */
+
+  // Use sinon package to change a 3rd party method and return it at the end of the test
+  it("should yield a userId after decoding the token", function () {
+    const req = {
+      get: function (headerName) {
+        return "Bearer tokenXYZZZ@$12";
+      },
+    };
+    // Change the jwt.verify to pass and return userId using sinon
+    sinon.stub(jwt, "verify");
+    jwt.verify.returns({ userId: "xyz" });
+    // Run the unit
+    authMiddleware(req, {}, () => {});
+    // Check the test
+    expect(req).to.have.property("userId");
+    // Check if it has userId with value 'xyz'
+    // expect(req).to.have.property("userId", "xyz");
+    // Restore the verify method as it was inside jwt to be used in later tests
+    jwt.verify.restore();
+  });
 });
