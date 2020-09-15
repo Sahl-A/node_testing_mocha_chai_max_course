@@ -80,12 +80,14 @@ exports.login = async (req, res, next) => {
         token,
         userId: user._id,
       });
+      return;
     } catch (err) {
       // ERR when comparing the password with the stored hash
       if (!err.statusCode) {
         err.statusCode = 500;
       }
       next(err);
+      return err;
     }
   } catch (err) {
     // ERR when getting a user from DB
@@ -93,5 +95,6 @@ exports.login = async (req, res, next) => {
       err.statusCode = 500;
     }
     next(err);
+    return err;
   }
 };
