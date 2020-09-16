@@ -31,7 +31,8 @@ describe("Auth Controller -- login", function () {
   });
 
   // Test with DB
-  it("should return a real user data includes status from DB", function (done) {
+  it("should return a response with a valid user status for an existing user", function (done) {
+    // Add the dummy user to the DB, so we can test getting it and checking the received status
     mongoose
       .connect("mongodb://localhost:27017/test-messages", {
         useNewUrlParser: true,
@@ -43,10 +44,32 @@ describe("Auth Controller -- login", function () {
           password: "test",
           name: "test",
           posts: [],
+          _id: "5c0f66b979af55031b34728a",
         });
         return user.save();
       })
-      .then()
+      .then(() => {
+        const req = { userId: "5c0f66b979af55031b34728a" };
+        const res = {
+          statusCode: 500,
+          userStatus: null,
+          status: function (code) {
+            this.statusCode = code;
+            return this;
+          },
+          json: function (data) {
+            this.userStatus = data.status;
+          },
+        };
+
+        authController
+          .getUserStatus(req, res, () => {})
+          .then(() => {
+            expect(res.statusCode).to.be.equal(200);
+            expect(res.userStatus).to.be.equal("I'm a new user");
+            done();
+          });
+      })
       .catch((err) => console.log(err));
   });
 });
