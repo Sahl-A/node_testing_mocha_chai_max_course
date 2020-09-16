@@ -1,5 +1,6 @@
 const expect = require("chai").expect;
 const sinon = require("sinon");
+const mongoose = require("mongoose");
 
 const authController = require("../controllers/auth");
 const User = require("../models/user");
@@ -27,5 +28,25 @@ describe("Auth Controller -- login", function () {
         done();
       });
     User.findOne.restore();
+  });
+
+  // Test with DB
+  it("should return a real user data includes status from DB", function (done) {
+    mongoose
+      .connect("mongodb://localhost:27017/test-messages", {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      })
+      .then((res) => {
+        const user = new User({
+          email: "test",
+          password: "test",
+          name: "test",
+          posts: [],
+        });
+        return user.save();
+      })
+      .then()
+      .catch((err) => console.log(err));
   });
 });
