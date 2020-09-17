@@ -5,7 +5,26 @@ const mongoose = require("mongoose");
 const authController = require("../controllers/auth");
 const User = require("../models/user");
 
-describe("Auth Controller -- login", function () {
+describe("Auth Controller", function () {
+  // Code to run one time before all the tests
+  before(function (done) {
+    mongoose
+      .connect("mongodb://localhost:27017/test-messages")
+      .then((result) => {
+        const user = new User({
+          email: "test@test.com",
+          password: "tester",
+          name: "Test",
+          posts: [],
+          _id: "5c0f66b979af55031b34728a",
+        });
+        return user.save();
+      })
+      .then(() => {
+        done();
+      });
+  });
+
   it("should throw an error with code 500 if accessing DB fails", function (done) {
     sinon.stub(User, "findOne");
     // Make the connection to DB throws error using sinon stub throws() method
@@ -31,52 +50,34 @@ describe("Auth Controller -- login", function () {
   });
 
   // Test with DB
-  it("should return a response with a valid user status for an existing user", function (done) {
-    // Add the dummy user to the DB, so we can test getting it and checking the received status
-    mongoose
-      .connect("mongodb://localhost:27017/test-messages", {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      })
-      .then((res) => {
-        const user = new User({
-          email: "test",
-          password: "test",
-          name: "test",
-          posts: [],
-          _id: "5c0f66b979af55031b34728a",
-        });
-        return user.save();
+  it("should send a response with a valid user status for an existing user", function (done) {
+    const req = { userId: "5c0f66b979af55031b34728a" };
+    const res = {
+      statusCode: 500,
+      userStatus: null,
+      status: function (code) {
+        this.statusCode = code;
+        return this;
+      },
+      json: function (data) {
+        this.userStatus = data.status;
+      },
+    };
+    authController.getUserStatus(req, res, () => {}).then(() => {
+      expect(res.statusCode).to.be.equal(200);
+      expect(res.userStatus).to.be.equal("I'm a new user");
+      done();
+    });
+  });
+
+  // Code to run one time after all the tests
+  after(function (done) {
+    User.deleteMany({})
+      .then(() => {
+        return mongoose.disconnect();
       })
       .then(() => {
-        const req = { userId: "5c0f66b979af55031b34728a" };
-        const res = {
-          statusCode: 500,
-          userStatus: null,
-          status: function (code) {
-            this.statusCode = code;
-            return this;
-          },
-          json: function (data) {
-            this.userStatus = data.status;
-          },
-        };
-
-        authController
-          .getUserStatus(req, res, () => {})
-          .then(() => {
-            expect(res.statusCode).to.be.equal(200);
-            expect(res.userStatus).to.be.equal("I'm a new user");
-            // Delete the user after each test to prevent errors in the next test
-            User.deleteMany({})
-              .then(() => {
-                return mongoose.disconnect();
-              })
-              .then(() => {
-                done();
-              });
-          });
-      })
-      .catch((err) => console.log(err));
+        done();
+      });
   });
 });
